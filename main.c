@@ -1,7 +1,7 @@
 /*===========================================================================================================
 
 FUNCTION: Automatic door application processes data using Python3 and MSP430F5529
-CREATED: 19/06/2025 by Tran Cong Khanh and Ly Lam Toan - K49 - Tu dong hoa CTU (^_^)
+CREATED: 19/06/2025 by Tran Cong Khanh(sorfware) and Ly Lam Toan(hardware) - K49 - Tu dong hoa CTU (^_^)
 
 =============================================================================================================*/
 
