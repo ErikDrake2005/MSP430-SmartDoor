@@ -30,12 +30,14 @@ volatile bool timer_expired = false;
 volatile bool changing_password = false;
 int nhiet_do;
 unsigned int analog_LM35;
-  
+
 void main(void){
     WDTCTL = WDTPW + WDTHOLD;   
     P3DIR |= 0xFF;
     P6DIR |= 0x0F;
     P6SEL |= BIT4;
+    P1DIR |= BIT2 + BIT3 + BIT4;
+    P1OUT &= ~(BIT2+BIT3+BIT4);
     P81_setup();
     Ngat_P21_Init();
     UART_A1_Init();
@@ -48,6 +50,8 @@ void main(void){
           if(once){
             P2IE &= ~BIT1;
             P8OUT &= ~BIT1;
+            P1OUT |= BIT4;
+            P1OUT &= ~(BIT2+BIT3);
             once=false;
           }
             displayLED();
@@ -56,6 +60,8 @@ void main(void){
           if(once){
               P2IE |= BIT1;
               P8OUT |= BIT1;
+              P1OUT |= BIT3;
+              P1OUT &= ~(BIT2+BIT4); 
               UART1_Send_Byte('O');
               start_timer();
               once = false;
@@ -129,8 +135,7 @@ void UART1_Send_Byte(char c){
         if (timeout == 0) {
             return;
         }
-    }
-    UCA1TXBUF = c;
+    } UCA1TXBUF = c;
 }
 
 void updateDisplay(char newNumber){
@@ -151,6 +156,7 @@ void reset(void){
     }
     count = 0;
     once = true;
+    P1OUT &= ~(BIT2+BIT3+BIT4);
     __bic_SR_register(GIE);
     __bis_SR_register(GIE);
 }
@@ -204,7 +210,9 @@ __interrupt void Timer_A0_ISR(void){
 __interrupt void NGATPORT2CHAM1(void){
     UART1_Send_Byte('N');
     changing_password = true;
-    TA0CTL &= ~MC_1;
+    P1OUT |= BIT2;
+    P1OUT &= ~(BIT3+BIT4);
+    // TA0CTL &= ~MC_1;
     P2IFG &= ~BIT1;
 }
 
@@ -239,6 +247,8 @@ __interrupt void NGAT_RX(void){
     }
     if(fromPython == 'D'){
         changing_password = false;
+        P1OUT |= BIT4;
+        P1OUT &= ~(BIT2+BIT3);
         TA0CTL |= MC_1;
     }
     if(fromPython=='C'){
