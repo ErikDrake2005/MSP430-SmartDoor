@@ -168,8 +168,8 @@ void calip_LM35(){
       int chuc, don_vi;
       chuc=nhiet_do/10;
       don_vi=nhiet_do%10;
-      display[0]='0'+3;
-      display[1]='0'+3;
+      display[0]='0'+chuc;
+      display[1]='0'+don_vi;
     }else{
       display[0]='0'+9;
       display[1]='0'+9;
