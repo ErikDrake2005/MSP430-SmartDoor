@@ -113,7 +113,6 @@ def input_password(title="Nhập Mật Khẩu", send_to_msp430=True):
     app.tk.protocol("WM_DELETE_WINDOW", on_closing)
     app.display()
     return result[0]
-
 while True:
     try:
         if program_stt == 0:
