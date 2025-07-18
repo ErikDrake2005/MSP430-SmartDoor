@@ -17,6 +17,7 @@ void calip_LM35();
 void displayLED(void);
 void updateDisplay(char newNumber);
 void start_timer(void);
+//void calip_cua();
 unsigned int LEDSTATUS[] = {0xC0, 0xF9, 0xA4, 0xB0, 0x99, 0x92, 0x82, 0xF8, 0x80, 0x90, 0xBF, 0x9C, 0xC6};
 char display[4] = {'-', '-', '-', '-'};
 volatile int count_array = 0;
@@ -38,6 +39,7 @@ void main(void){
     P6SEL |= BIT4;
     P1DIR |= BIT2 + BIT3 + BIT4;
     P1OUT &= ~(BIT2+BIT3+BIT4);
+    TA0CTL = TASSEL_2 | MC_1 | TACLR;
     P81_setup();
     Ngat_P21_Init();
     UART_A1_Init();
@@ -90,8 +92,7 @@ void P81_setup(void){
 void start_timer(void){
     seconds_counter = 0;
     timer_expired = false;
-    TA0CTL = TASSEL_2 | MC_1 | TACLR;
-    TA0CCR0 = 65534;
+    TA0CCR0 = 20000;
     TA0CCTL0 = CCIE;
 }
 void UART_A1_Init(void){
@@ -178,6 +179,7 @@ void calip_LM35(){
     display[3]='0'+12;
 }
 
+
 unsigned int ReadADC12(unsigned int channel){
     REFCTL0 &= ~REFMSTR;
     ADC12CTL0 = ADC12SHT0_9 | ADC12REFON | ADC12REF2_5V | ADC12ON;
@@ -197,7 +199,7 @@ __interrupt void Timer_A0_ISR(void){
     calip_LM35();
     if (!changing_password){
         seconds_counter++;
-        if(seconds_counter >= 458){ 
+        if(seconds_counter >= 1500){ 
             timer_expired = true;
             UART1_Send_Byte('C');
             TA0CTL &= ~MC_1;
