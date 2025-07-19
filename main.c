@@ -16,8 +16,9 @@ void reset(void);
 void calip_LM35();
 void displayLED(void);
 void updateDisplay(char newNumber);
+void timer_setup(void);
 void start_timer(void);
-//void calip_cua();
+void calip_cua(void);
 unsigned int LEDSTATUS[] = {0xC0, 0xF9, 0xA4, 0xB0, 0x99, 0x92, 0x82, 0xF8, 0x80, 0x90, 0xBF, 0x9C, 0xC6};
 char display[4] = {'-', '-', '-', '-'};
 volatile int count_array = 0;
@@ -30,16 +31,17 @@ volatile int seconds_counter = 0;
 volatile bool timer_expired = false;
 volatile bool changing_password = false;
 int nhiet_do;
-unsigned int analog_LM35;
+unsigned int analog_LM35, analog_cua;
 
 void main(void){
     WDTCTL = WDTPW + WDTHOLD;   
     P3DIR |= 0xFF;
     P6DIR |= 0x0F;
-    P6SEL |= BIT4;
-    P1DIR |= BIT2 + BIT3 + BIT4;
+    P6SEL |= BIT4 + BIT5;
+    P1DIR |= BIT2 + BIT3 + BIT4 + BIT5;
+    P1SEL |= BIT5;
     P1OUT &= ~(BIT2+BIT3+BIT4);
-    TA0CTL = TASSEL_2 | MC_1 | TACLR;
+    timer_setup();
     P81_setup();
     Ngat_P21_Init();
     UART_A1_Init();
@@ -54,6 +56,7 @@ void main(void){
             P8OUT &= ~BIT1;
             P1OUT |= BIT4;
             P1OUT &= ~(BIT2+BIT3);
+            TA0CCR4=1500;
             once=false;
           }
             displayLED();
@@ -83,6 +86,12 @@ void main(void){
           __delay_cycles(50000);
         }}
 }
+void timer_setup(void){
+    TA0CTL = TASSEL_2 | MC_1 | TACLR;
+    TA0CCR0 = 20000;
+    TA0CCR4 =1500;
+    TA0CCTL4= OUTMOD_7;
+}
 
 void P81_setup(void){
     UCSCTL6 |= XT1OFF;
@@ -92,7 +101,6 @@ void P81_setup(void){
 void start_timer(void){
     seconds_counter = 0;
     timer_expired = false;
-    TA0CCR0 = 20000;
     TA0CCTL0 = CCIE;
 }
 void UART_A1_Init(void){
@@ -152,6 +160,7 @@ void reset(void){
     P2IE &= ~BIT1;
     TA0CCTL0 &= ~CCIE;
     TA0CTL |= TACLR;
+    TA0CCR4=1500;
     for(int i = 0; i < 4; i++){
         updateDisplay('-');
     }
@@ -162,7 +171,12 @@ void reset(void){
     __bis_SR_register(GIE);
 }
 
-void calip_LM35(){
+void calip_cua(void){
+  analog_cua=ReadADC12(5);
+  TA0CCR4 = 1000+((analog_cua*2.5)/4095.0)*1000;
+}
+
+void calip_LM35(void){
     analog_LM35 = ReadADC12(4);
     nhiet_do =((analog_LM35*2.5)/4095.0)*100.0; // ((gia tri analog 12 bit*dien ap tham chieu)/bien do tuong tu 12bit)*100
     if(nhiet_do<100){
@@ -178,7 +192,6 @@ void calip_LM35(){
     display[2]='0'+11;
     display[3]='0'+12;
 }
-
 
 unsigned int ReadADC12(unsigned int channel){
     REFCTL0 &= ~REFMSTR;
@@ -197,6 +210,7 @@ unsigned int ReadADC12(unsigned int channel){
 #pragma vector=TIMER0_A0_VECTOR
 __interrupt void Timer_A0_ISR(void){
     calip_LM35();
+    calip_cua();
     if (!changing_password){
         seconds_counter++;
         if(seconds_counter >= 1500){ 
