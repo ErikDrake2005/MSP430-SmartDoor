@@ -3,7 +3,7 @@ from guizero import App, Window, TextBox, PushButton
 import time
 from SCAN import nhan_dien_khuon_mat as NDKM
 
-ser = serial.Serial('COM4', 9600, timeout=1)
+ser = serial.Serial('COM12', 9600, timeout=1)
 
 def receive():
     try:
