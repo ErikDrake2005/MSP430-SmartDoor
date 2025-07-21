@@ -46,7 +46,7 @@ void main(void){
     Ngat_P21_Init();
     UART_A1_Init();
     UCA1IE |= UCRXIE;
-    __bis_SR_register(GIE);
+    bis_SR_register(GIE);
     P6OUT |= 0xFF;
 
     while(1){
@@ -102,6 +102,7 @@ void start_timer(void){
     seconds_counter = 0;
     timer_expired = false;
     TA0CCTL0 = CCIE;
+    TA0CTL |= MC_1;
 }
 void UART_A1_Init(void){
     P4SEL |= BIT4 | BIT5;  // Configure P4.4 (TX) and P4.5 (RX)
@@ -159,6 +160,7 @@ void reset(void){
     run = 0;
     P2IE &= ~BIT1;
     TA0CCTL0 &= ~CCIE;
+    TA0CTL &= ~MC_1;
     TA0CTL |= TACLR;
     TA0CCR4=1500;
     for(int i = 0; i < 4; i++){
@@ -167,8 +169,8 @@ void reset(void){
     count = 0;
     once = true;
     P1OUT &= ~(BIT2+BIT3+BIT4);
-    __bic_SR_register(GIE);
-    __bis_SR_register(GIE);
+    bic_SR_register(GIE);
+    bis_SR_register(GIE);
 }
 
 void calip_cua(void){
