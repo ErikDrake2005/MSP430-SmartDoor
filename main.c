@@ -8,7 +8,7 @@ CREATED: 19/06/2025 by Tran Cong Khanh(sorfware) and Ly Lam Toan(hardware) - K49
 #include <msp430f5529.h>
 #include <stdbool.h>
 void UART_A1_Init(void);
-void Ngat_P21_Init(void);
+void Ngat_Nut(void);
 void UART1_Send_Byte(char c);
 unsigned int ReadADC12(unsigned int channel);
 void P81_setup(void);
@@ -16,9 +16,7 @@ void reset(void);
 void calip_LM35();
 void displayLED(void);
 void updateDisplay(char newNumber);
-void timer_setup(void);
 void start_timer(void);
-void calip_cua(void);
 unsigned int LEDSTATUS[] = {0xC0, 0xF9, 0xA4, 0xB0, 0x99, 0x92, 0x82, 0xF8, 0x80, 0x90, 0xBF, 0x9C, 0xC6};
 char display[4] = {'-', '-', '-', '-'};
 volatile int count_array = 0;
@@ -27,36 +25,34 @@ volatile bool security = 1;
 volatile int count = 0;
 volatile bool run=0;
 bool once = true;
-volatile int seconds_counter = 0;
+volatile int seconds_counter = 0, counter_cho=1500;
 volatile bool timer_expired = false;
 volatile bool changing_password = false;
 int nhiet_do;
-unsigned int analog_LM35, analog_cua;
+unsigned int analog_LM35;
 
 void main(void){
     WDTCTL = WDTPW + WDTHOLD;   
     P3DIR |= 0xFF;
     P6DIR |= 0x0F;
-    P6SEL |= BIT4 + BIT5;
-    P1DIR |= BIT2 + BIT3 + BIT4 + BIT5;
-    P1SEL |= BIT5;
+    P6SEL |= BIT4;
+    P1DIR |= BIT2 + BIT3 + BIT4;
     P1OUT &= ~(BIT2+BIT3+BIT4);
-    timer_setup();
     P81_setup();
-    Ngat_P21_Init();
+    Ngat_Nut();
     UART_A1_Init();
     UCA1IE |= UCRXIE;
-    bis_SR_register(GIE);
+    __bis_SR_register(GIE);
     P6OUT |= 0xFF;
 
     while(1){
         while(security){
           if(once){
             P2IE &= ~BIT1;
+            P1IE &= ~BIT1;
             P8OUT &= ~BIT1;
             P1OUT |= BIT4;
             P1OUT &= ~(BIT2+BIT3);
-            TA0CCR4=1500;
             once=false;
           }
             displayLED();
@@ -64,6 +60,7 @@ void main(void){
         while(run){
           if(once){
               P2IE |= BIT1;
+              P1IE |= BIT1;
               P8OUT |= BIT1;
               P1OUT |= BIT3;
               P1OUT &= ~(BIT2+BIT4); 
@@ -86,12 +83,6 @@ void main(void){
           __delay_cycles(50000);
         }}
 }
-void timer_setup(void){
-    TA0CTL = TASSEL_2 | MC_1 | TACLR;
-    TA0CCR0 = 20000;
-    TA0CCR4 =1500;
-    TA0CCTL4= OUTMOD_7;
-}
 
 void P81_setup(void){
     UCSCTL6 |= XT1OFF;
@@ -101,8 +92,9 @@ void P81_setup(void){
 void start_timer(void){
     seconds_counter = 0;
     timer_expired = false;
+    TA0CTL = TASSEL_2 | MC_1 | TACLR;
+    TA0CCR0 = 20000;
     TA0CCTL0 = CCIE;
-    TA0CTL |= MC_1;
 }
 void UART_A1_Init(void){
     P4SEL |= BIT4 | BIT5;  // Configure P4.4 (TX) and P4.5 (RX)
@@ -114,12 +106,17 @@ void UART_A1_Init(void){
     UCA1CTL1 &= ~UCSWRST;  // End reset
 }
 
-void Ngat_P21_Init(void){
+void Ngat_Nut(void){
     P2DIR &= ~BIT1;
     P2REN |= BIT1;
     P2OUT |= BIT1;
     P2IES |= BIT1;
     P2IFG &= ~BIT1;
+    P1DIR &= ~BIT1;
+    P1REN |= BIT1;
+    P1OUT |= BIT1;
+    P1IES |= BIT1;
+    P1IFG &= ~BIT1;
 }
 
 void displayLED(void){
@@ -159,26 +156,20 @@ void reset(void){
     security = 1;
     run = 0;
     P2IE &= ~BIT1;
+    P1IE &= ~BIT1;
     TA0CCTL0 &= ~CCIE;
-    TA0CTL &= ~MC_1;
     TA0CTL |= TACLR;
-    TA0CCR4=1500;
     for(int i = 0; i < 4; i++){
         updateDisplay('-');
     }
     count = 0;
     once = true;
     P1OUT &= ~(BIT2+BIT3+BIT4);
-    bic_SR_register(GIE);
-    bis_SR_register(GIE);
+    __bic_SR_register(GIE);
+    __bis_SR_register(GIE);
 }
 
-void calip_cua(void){
-  analog_cua=ReadADC12(5);
-  TA0CCR4 = 1000+((analog_cua*2.5)/4095.0)*1000;
-}
-
-void calip_LM35(void){
+void calip_LM35(){
     analog_LM35 = ReadADC12(4);
     nhiet_do =((analog_LM35*2.5)/4095.0)*100.0; // ((gia tri analog 12 bit*dien ap tham chieu)/bien do tuong tu 12bit)*100
     if(nhiet_do<100){
@@ -211,11 +202,10 @@ unsigned int ReadADC12(unsigned int channel){
 
 #pragma vector=TIMER0_A0_VECTOR
 __interrupt void Timer_A0_ISR(void){
-    calip_LM35();
-    calip_cua();
+  if(seconds_counter%10==0) calip_LM35();
     if (!changing_password){
         seconds_counter++;
-        if(seconds_counter >= 1500){ 
+        if(seconds_counter >= counter_cho){ // moi 500 la 10ms
             timer_expired = true;
             UART1_Send_Byte('C');
             TA0CTL &= ~MC_1;
@@ -232,6 +222,12 @@ __interrupt void NGATPORT2CHAM1(void){
     P1OUT &= ~(BIT3+BIT4);
     // TA0CTL &= ~MC_1;
     P2IFG &= ~BIT1;
+}
+
+#pragma vector=PORT1_VECTOR
+__interrupt void NGATPORT1CHAM1(void){
+    seconds_counter=counter_cho-10;
+    P1IFG &= ~BIT1;
 }
 
 #pragma vector=USCI_A1_VECTOR
@@ -265,8 +261,8 @@ __interrupt void NGAT_RX(void){
     }
     if(fromPython == 'D'){
         changing_password = false;
-        P1OUT |= BIT4;
-        P1OUT &= ~(BIT2+BIT3);
+        P1OUT |= BIT3;
+        P1OUT &= ~(BIT2+BIT4);
         TA0CTL |= MC_1;
     }
     if(fromPython=='C'){
